@@ -5,49 +5,112 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def GCL():
+def CGL():
   
-    path = 'D:/Data/CGL_subproject_coarse_res/04_ndvi/c_gls_NDVI300_201905210000_GLOBE_PROBAV_V1.0.1.nc'
+    path = 'D:/Data/CGL_subproject_coarse_res/01_lai/c_gls_LAI300_201905200000_GLOBE_PROBAV_V1.0.1.nc'
     my_ext = [-18.58, 62.95, 51.57, 28.5]
 
     ds = xr.open_dataset(path, mask_and_scale=True)
 
     if 'LAI' in ds.data_vars:
-        product = 'LAI'
-        DN_max = 7.
+        param = {'product': 'LAI',
+                 'DN_max': 7.,
+                 'short_name': 'leaf_area_index',
+                 'long_name': 'Leaf Area Index Resampled 1 Km',
+                 'grid_mapping': 'crs',
+                 'flag_meanings': 'Missing',
+                 'flag_values': '255',
+                 'units': '',
+                 'valid_range': '[0 210]',
+                 'PHYSICAL MIN': 0,
+                 'PHYSICAL MAX': 7,
+                 'DIGITAL MAX': 210,
+                 'SCALING': 1./30,
+                 'OFFSET': 0}
         da = ds.LAI
-        short_name = ''
-        long_name = ''
+
     elif 'FCOVER' in ds.data_vars:
-        product = 'FCOVER'
-        DN_max = .94
+        param = {'product': 'FCOVER',
+                 'DN_max': .94,
+                 'short_name': '',
+                 'long_name': '',
+                 'grid_mapping': 'crs',
+                 'flag_meanings': '',
+                 'flag_values': '',
+                 'units': '',
+                 'valid_range': '',
+                 'PHYSICAL MIN': 0,
+                 'PHYSICAL MAX': 1.,
+                 'DIGITAL MAX': 250,
+                 'SCALING': 1./250,
+                 'OFFSET': 0}
         da = ds.FCOVER
-        short_name = ''
-        long_name = ''
+
     elif 'FAPAR' in ds.data_vars:
-        product = 'FAPAR'
-        DN_max = .94
+        param = {'product': 'FAPAR',
+                 'DN_max': .94,
+                 'short_name': '',
+                 'long_name': '',
+                 'grid_mapping': 'crs',
+                 'flag_meanings': '',
+                 'flag_values': '',
+                 'units': '',
+                 'valid_range': '',
+                 'PHYSICAL MIN': 0,
+                 'PHYSICAL MAX': 0.94,
+                 'DIGITAL MAX': 235,
+                 'SCALING': 1./250,
+                 'OFFSET': 0}
         da = ds.FAPAR
-        short_name = ''
-        long_name = ''
     elif 'NDVI' in ds.data_vars:
-        product = 'NDVI'
-        DN_max = .92
+        param = {'product': 'NDVI',
+                 'DN_max': .92,
+                 'short_name': 'Normalized_difference_vegetation_index',
+                 'long_name': 'Normalized Difference Vegetation Index Resampled 1 Km',
+                 'grid_mapping': 'crs',
+                 'flag_meanings': '',
+                 'flag_values': '',
+                 'units': '',
+                 'valid_range': '',
+                 'PHYSICAL MIN': -0.08,
+                 'PHYSICAL MAX': 0.92,
+                 'DIGITAL MAX': 250,
+                 'SCALING': 1./250,
+                 'OFFSET': -0.08}
         da = ds.NDVI
-        short_name = 'Normalized_difference_vegetation_index'
-        long_name = 'Normalized Difference Vegetation Index Resampled 1 Km'
+
     elif 'DMP' in ds.data_vars:
-        DN_max = 327.67
-        product = 'DMP'
-        da = ds.DMP
-        short_name = ''
-        long_name = ''
+        param = {'product': 'DMP',
+                 'DN_max': 327.67,
+                 'short_name': '',
+                 'long_name': '',
+                 'grid_mapping': 'crs',
+                 'flag_meanings': '',
+                 'flag_values': '',
+                 'units': '',
+                 'valid_range': '',
+                 'PHYSICAL MIN': 0,
+                 'PHYSICAL MAX': 327.67,
+                 'DIGITAL MAX': 32767,
+                 'SCALING': 1./100,
+                 'OFFSET': 0}
+        da = ds.FCOVER
     elif 'GDMP' in ds.data_vars:
-        product = 'GDMP'
-        DN_max = 655.34
+        param = {'product': 'DMP',
+                 'DN_max': 655.34,
+                 'short_name': '',
+                 'long_name': '',
+                 'grid_mapping': 'crs',
+                 'flag_meanings': '',
+                 'flag_values': '',
+                 'units': '',
+                 'valid_range': '',
+                 'PHYSICAL MIN': 0,
+                 'PHYSICAL MAX': 655.34,
+                 'DIGITAL MAX': 32767,
+                 'SCALING': 1./50,
+                 'OFFSET': 0}
         da = ds.GDMP
-        short_name = ''
-        long_name = ''
     else:
         sys.exit('GLC product not found please chek')
 
@@ -56,7 +119,7 @@ def GCL():
         idx = (np.abs(array - value)).argmin()
         return array[idx]
 
-    def bnd_box_adj(my_est):
+    def bnd_box_adj(my_ext):
         lat_1k = np.arange(80., -60., -1. / 112)
         lon_1k = np.arange(-180., 180., 1. / 112)
 
@@ -92,28 +155,31 @@ def GCL():
         da = da.shift(lat=1, lon=1)
 
     # TODO differentiate according to the different products structures
-    da_msk = da.where(da <= DN_max)
+    da_msk = da.where(da <= param['DN_max'])
 
     coarsen = da_msk.coarsen(lat=3, lon=3, coord_func=np.mean, boundary='trim', keep_attrs=False).mean()
 
-    vo = xr.where(da <= DN_max, 1, 0)
+    vo = xr.where(da <= param['DN_max'], 1, 0)
     vo_cnt = vo.coarsen(lat=3, lon=3, coord_func=np.mean, boundary='trim', keep_attrs=False).sum()
     da_r = coarsen.where(vo_cnt >= 5)
 
-    da_r.name = product
-    da_r.attrs['short_name'] = short_name
-    da_r.attrs['long_name'] = long_name
-    prmts = dict({product: {'dtype': 'f8', 'zlib': 'True', 'complevel': 4}})
-    da_r.to_netcdf(f'D:/Data/CGL_subproject_coarse_res/Tests/CGL_{product}_1KM_R_Europe_20190521.nc', encoding=prmts)
+    da_r.name = param['product']
+    da_r.attrs['short_name'] = param['short_name']
+    da_r.attrs['long_name'] = param['long_name']
+    prmts = dict({param['product']: {'dtype': 'f8', 'zlib': 'True', 'complevel': 4}})
+    name = param['product']
+    da_r.to_netcdf(rf'D:/Data/CGL_subproject_coarse_res/Tests/CGL_{name}_1KM_R_Europe_20190521.nc', encoding=prmts)
     print('Done')
 
+    plt.figure()
     da_r.plot(robust=True, cmap='YlGn', figsize=(15, 10))
 
-    plt.title(f'Copernicus Global Land\n Resampled {product} to 1K over Europe\n date: 20190521')
+    plt.title(f'Copernicus Global Land\n Resampled {name} to 1K over Europe\n date: 20190521')
     plt.ylabel('latitude')
     plt.xlabel('longitude')
     plt.draw()
+    plt.show()
 
 
 if __name__ == '__main__':
-    GCL()
+    CGL()
