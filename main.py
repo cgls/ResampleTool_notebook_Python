@@ -1,14 +1,21 @@
 # coding: utf-8
-import xarray as xr
+import datetime as dt
+import os
 import sys
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
+import xarray as xr
 
 
 def CGL():
   
     path = 'D:/Data/CGL_subproject_coarse_res/2019/300/c_gls_NDVI300_201905010000_GLOBE_PROBAV_V1.0.1.nc'
-    date = '20190501'
+
+    head, tail = os.path.split(path)
+    pos = [pos for pos, char in enumerate(tail) if char == '_'][2]
+    date = tail[pos + 1: pos + 9]
+    date_h = dt.datetime.strptime(date, '%Y%m%d').date()
 
     my_ext = [-18.58, 62.95, 51.57, 28.5]
 
@@ -169,7 +176,7 @@ def CGL():
 
     da_r.plot(robust=True, cmap='YlGn', figsize=(15, 10))
 
-    plt.title(f'Copernicus Global Land\n Resampled {name} to 1K over Europe\n date: 20190521')
+    plt.title(f'Copernicus Global Land\n Resampled {name} to 1K over Europe\n date: {date_h}')
     plt.ylabel('latitude')
     plt.xlabel('longitude')
     plt.draw()
