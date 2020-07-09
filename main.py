@@ -7,110 +7,106 @@ import matplotlib.pyplot as plt
 
 def CGL():
   
-    path = 'D:/Data/CGL_subproject_coarse_res/01_lai/c_gls_LAI300_201905200000_GLOBE_PROBAV_V1.0.1.nc'
+    path = 'D:/Data/CGL_subproject_coarse_res/2019/300/c_gls_NDVI300_201905010000_GLOBE_PROBAV_V1.0.1.nc'
+    date = '20190501'
+
     my_ext = [-18.58, 62.95, 51.57, 28.5]
 
-    ds = xr.open_dataset(path, mask_and_scale=True)
+    ds = xr.open_dataset(path, mask_and_scale=False)
 
+    da_rmse = None
     if 'LAI' in ds.data_vars:
         param = {'product': 'LAI',
-                 'DN_max': 7.,
                  'short_name': 'leaf_area_index',
                  'long_name': 'Leaf Area Index Resampled 1 Km',
                  'grid_mapping': 'crs',
                  'flag_meanings': 'Missing',
                  'flag_values': '255',
                  'units': '',
-                 'valid_range': '[0 210]',
-                 'PHYSICAL MIN': 0,
-                 'PHYSICAL MAX': 7,
-                 'DIGITAL MAX': 210,
+                 'PHYSICAL_MIN': 0,
+                 'PHYSICAL_MAX': 7,
+                 'DIGITAL_MAX': 210,
                  'SCALING': 1./30,
                  'OFFSET': 0}
         da = ds.LAI
 
     elif 'FCOVER' in ds.data_vars:
         param = {'product': 'FCOVER',
-                 'DN_max': .94,
-                 'short_name': '',
-                 'long_name': '',
+                 'short_name': 'vegetation_area_fraction',
+                 'long_name': 'Fraction of green Vegetation Cover Resampled 1 Km',
                  'grid_mapping': 'crs',
-                 'flag_meanings': '',
-                 'flag_values': '',
+                 'flag_meanings': 'Missing',
+                 'flag_values': '255',
                  'units': '',
                  'valid_range': '',
-                 'PHYSICAL MIN': 0,
-                 'PHYSICAL MAX': 1.,
-                 'DIGITAL MAX': 250,
+                 'PHYSICAL_MIN': 0,
+                 'PHYSICAL_MAX': 1.,
+                 'DIGITAL_MAX': 250,
                  'SCALING': 1./250,
                  'OFFSET': 0}
         da = ds.FCOVER
 
     elif 'FAPAR' in ds.data_vars:
         param = {'product': 'FAPAR',
-                 'DN_max': .94,
-                 'short_name': '',
-                 'long_name': '',
+                 'short_name': 'Fraction_of_Absorbed_Photosynthetically_Active_Radiation',
+                 'long_name': 'Fraction of Absorbed Photosynthetically Active Radiation Resampled 1 KM',
                  'grid_mapping': 'crs',
-                 'flag_meanings': '',
-                 'flag_values': '',
+                 'flag_meanings': 'Missing',
+                 'flag_values': '255',
                  'units': '',
                  'valid_range': '',
-                 'PHYSICAL MIN': 0,
-                 'PHYSICAL MAX': 0.94,
-                 'DIGITAL MAX': 235,
+                 'PHYSICAL_MIN': 0,
+                 'PHYSICAL_MAX': 0.94,
+                 'DIGITAL_MAX': 235,
                  'SCALING': 1./250,
                  'OFFSET': 0}
         da = ds.FAPAR
+
     elif 'NDVI' in ds.data_vars:
         param = {'product': 'NDVI',
-                 'DN_max': .92,
                  'short_name': 'Normalized_difference_vegetation_index',
                  'long_name': 'Normalized Difference Vegetation Index Resampled 1 Km',
                  'grid_mapping': 'crs',
-                 'flag_meanings': '',
-                 'flag_values': '',
+                 'flag_meanings': 'Missing cloud snow sea background',
+                 'flag_values': '[251 252 253 254 255]',
                  'units': '',
-                 'valid_range': '',
-                 'PHYSICAL MIN': -0.08,
-                 'PHYSICAL MAX': 0.92,
-                 'DIGITAL MAX': 250,
+                 'PHYSICAL_MIN': -0.08,
+                 'PHYSICAL_MAX': 0.92,
+                 'DIGITAL_MAX': 250,
                  'SCALING': 1./250,
                  'OFFSET': -0.08}
         da = ds.NDVI
 
     elif 'DMP' in ds.data_vars:
         param = {'product': 'DMP',
-                 'DN_max': 327.67,
-                 'short_name': '',
-                 'long_name': '',
+                 'short_name': 'dry_matter_productivity',
+                 'long_name': 'Dry matter productivity Resampled 1KM',
                  'grid_mapping': 'crs',
-                 'flag_meanings': '',
-                 'flag_values': '',
-                 'units': '',
-                 'valid_range': '',
-                 'PHYSICAL MIN': 0,
-                 'PHYSICAL MAX': 327.67,
-                 'DIGITAL MAX': 32767,
+                 'flag_meanings': 'sea',
+                 'flag_values': '-2',
+                 'units': 'kg / ha / day',
+                 'PHYSICAL_MIN': 0,
+                 'PHYSICAL_MAX': 327.67,
+                 'DIGITAL_MAX': 32767,
                  'SCALING': 1./100,
                  'OFFSET': 0}
-        da = ds.FCOVER
+        da = ds.DMP
+
     elif 'GDMP' in ds.data_vars:
-        param = {'product': 'DMP',
-                 'DN_max': 655.34,
-                 'short_name': '',
-                 'long_name': '',
+        param = {'product': 'GDMP',
+                 'short_name': 'Gross_dry_matter_productivity',
+                 'long_name': 'Gross dry matter productivity Resampled 1KM',
                  'grid_mapping': 'crs',
-                 'flag_meanings': '',
-                 'flag_values': '',
-                 'units': '',
-                 'valid_range': '',
-                 'PHYSICAL MIN': 0,
-                 'PHYSICAL MAX': 655.34,
-                 'DIGITAL MAX': 32767,
+                 'flag_meanings': 'sea',
+                 'flag_values': '-2',
+                 'units': 'kg / hectare / day',
+                 'PHYSICAL_MIN': 0,
+                 'PHYSICAL_MAX': 655.34,
+                 'DIGITAL_MAX': 32767,
                  'SCALING': 1./50,
                  'OFFSET': 0}
         da = ds.GDMP
+
     else:
         sys.exit('GLC product not found please chek')
 
@@ -128,10 +124,10 @@ def CGL():
         ext_1K = np.zeros(4)
 
         # TODO find a more pythonic way
-        ext_1K[0] = find_nearest(lon_1k, my_ext[0]) - 1 / 224
-        ext_1K[1] = find_nearest(lat_1k, my_ext[1]) + 1 / 224
-        ext_1K[2] = find_nearest(lon_1k, my_ext[2]) - 1 / 224
-        ext_1K[3] = find_nearest(lat_1k, my_ext[3]) + 1 / 224
+        ext_1K[0] = find_nearest(lon_1k, my_ext[0]) - 1. / 224
+        ext_1K[1] = find_nearest(lat_1k, my_ext[1]) + 1. / 224
+        ext_1K[2] = find_nearest(lon_1k, my_ext[2]) - 1. / 224
+        ext_1K[3] = find_nearest(lat_1k, my_ext[3]) + 1. / 224
 
         my_ext[0] = find_nearest(lat_300, ext_1K[0])
         my_ext[1] = find_nearest(lon_300, ext_1K[1])
@@ -155,11 +151,11 @@ def CGL():
         da = da.shift(lat=1, lon=1)
 
     # TODO differentiate according to the different products structures
-    da_msk = da.where(da <= param['DN_max'])
+    da_msk = da.where(da <= param['DIGITAL_MAX'])
 
     coarsen = da_msk.coarsen(lat=3, lon=3, coord_func=np.mean, boundary='trim', keep_attrs=False).mean()
 
-    vo = xr.where(da <= param['DN_max'], 1, 0)
+    vo = xr.where(da <= param['DIGITAL_MAX'], 1, 0)
     vo_cnt = vo.coarsen(lat=3, lon=3, coord_func=np.mean, boundary='trim', keep_attrs=False).sum()
     da_r = coarsen.where(vo_cnt >= 5)
 
@@ -168,10 +164,9 @@ def CGL():
     da_r.attrs['long_name'] = param['long_name']
     prmts = dict({param['product']: {'dtype': 'f8', 'zlib': 'True', 'complevel': 4}})
     name = param['product']
-    da_r.to_netcdf(rf'D:/Data/CGL_subproject_coarse_res/Tests/CGL_{name}_1KM_R_Europe_20190521.nc', encoding=prmts)
+    da_r.to_netcdf(rf'D:/Data/CGL_subproject_coarse_res/Tests/CGLS_{name}_1KM_R_Europe_{date}.nc', encoding=prmts)
     print('Done')
 
-    plt.figure()
     da_r.plot(robust=True, cmap='YlGn', figsize=(15, 10))
 
     plt.title(f'Copernicus Global Land\n Resampled {name} to 1K over Europe\n date: 20190521')
