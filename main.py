@@ -1,27 +1,18 @@
 # coding: utf-8
 import datetime as dt
 import os
+import re
 import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import requests
 import xarray as xr
+from tqdm import tqdm
 
 
-def CGL():
-  
-    path = 'D:/Data/CGL_subproject_coarse_res/2019/300/c_gls_NDVI300_201905010000_GLOBE_PROBAV_V1.0.1.nc'
-
-    head, tail = os.path.split(path)
-    pos = [pos for pos, char in enumerate(tail) if char == '_'][2]
-    date = tail[pos + 1: pos + 9]
-    date_h = dt.datetime.strptime(date, '%Y%m%d').date()
-
-    my_ext = [-18.58, 62.95, 51.57, 28.5]
-
-    ds = xr.open_dataset(path, mask_and_scale=False)
-
-    da_rmse = None
+def _param(ds):
     if 'LAI' in ds.data_vars:
         param = {'product': 'LAI',
                  'short_name': 'leaf_area_index',
@@ -33,7 +24,7 @@ def CGL():
                  'PHYSICAL_MIN': 0,
                  'PHYSICAL_MAX': 7,
                  'DIGITAL_MAX': 210,
-                 'SCALING': 1./30,
+                 'SCALING': 1. / 30,
                  'OFFSET': 0}
         da = ds.LAI
 
@@ -49,7 +40,7 @@ def CGL():
                  'PHYSICAL_MIN': 0,
                  'PHYSICAL_MAX': 1.,
                  'DIGITAL_MAX': 250,
-                 'SCALING': 1./250,
+                 'SCALING': 1. / 250,
                  'OFFSET': 0}
         da = ds.FCOVER
 
@@ -65,7 +56,7 @@ def CGL():
                  'PHYSICAL_MIN': 0,
                  'PHYSICAL_MAX': 0.94,
                  'DIGITAL_MAX': 235,
-                 'SCALING': 1./250,
+                 'SCALING': 1. / 250,
                  'OFFSET': 0}
         da = ds.FAPAR
 
@@ -80,7 +71,7 @@ def CGL():
                  'PHYSICAL_MIN': -0.08,
                  'PHYSICAL_MAX': 0.92,
                  'DIGITAL_MAX': 250,
-                 'SCALING': 1./250,
+                 'SCALING': 1. / 250,
                  'OFFSET': -0.08}
         da = ds.NDVI
 
@@ -95,7 +86,7 @@ def CGL():
                  'PHYSICAL_MIN': 0,
                  'PHYSICAL_MAX': 327.67,
                  'DIGITAL_MAX': 32767,
-                 'SCALING': 1./100,
+                 'SCALING': 1. / 100,
                  'OFFSET': 0}
         da = ds.DMP
 
@@ -110,13 +101,68 @@ def CGL():
                  'PHYSICAL_MIN': 0,
                  'PHYSICAL_MAX': 655.34,
                  'DIGITAL_MAX': 32767,
-                 'SCALING': 1./50,
+                 'SCALING': 1. / 50,
                  'OFFSET': 0}
         da = ds.GDMP
 
     else:
         sys.exit('GLC product not found please chek')
 
+    return da, param
+
+
+def _downloader(user, psw, folder):
+    url = 'https://land.copernicus.vgt.vito.be/manifest/'
+
+    session = requests.Session()
+    session.auth = (user, psw)
+
+    manifest = session.get(url, allow_redirects=True)
+    products = pd.read_html(manifest.text)[0][2:-1]['Name']
+    products = products[products.str.contains('300_')].reset_index(drop=True)
+    print(products)
+    val = input('Please select the product from the list:')
+    url = f'{url}{products[int(val)]}'
+
+    manifest = session.get(url, allow_redirects=True)
+    product = pd.read_html(manifest.text)[0][-2:-1]['Name'].values[0]
+    purl = f'{url}{product}'
+    r = session.get(purl, stream=True)
+    rows = r.text.split('\n')
+    dates = pd.DataFrame()
+    for line in rows[:-1]:
+        r = re.search(r"\d\d\d\d(\/)\d\d(\/)\d\d", line)
+        dates = dates.append(pd.DataFrame([line], index=[pd.to_datetime(r[0], format="%Y/%m/%d")]))
+
+    val = input('Please insert the date in teh format YYYY/MM/DD:')
+
+    dates = dates.sort_index()
+    i = dates.index.searchsorted(dt.datetime.strptime(val, "%Y/%m/%d"))
+    link = dates.iloc[i][0]
+    filename = os.path.basename(link)
+    if folder != '':
+        path = sys.path.join(folder, filename)
+    else:
+        path = filename
+
+    r = session.get(link, stream=True)
+
+    total_size = int(r.headers.get('content-length', 0))
+    block_size = 1024  # 1 Kibibyte
+    t = tqdm(total=total_size, unit='iB', unit_scale=True)
+
+    with open(path, 'wb') as f:
+        for data in r.iter_content(block_size):
+            t.update(len(data))
+            f.write(data)
+    t.close()
+    if total_size != 0 and t.n != total_size:
+        print("ERROR, something went wrong")
+
+    return path
+
+
+def _aoi(da, ds, my_ext):
     def find_nearest(array, value):
         array = np.asarray(array)
         idx = (np.abs(array - value)).argmin()
@@ -156,32 +202,78 @@ def CGL():
         da = da.sel(lon=slice(adj_ext[0], adj_ext[2]), lat=slice(adj_ext[1], adj_ext[3]))
     else:
         da = da.shift(lat=1, lon=1)
+    return da
 
-    # TODO differentiate according to the different products structures
+
+def _date_extr(path):
+    _, tail = os.path.split(path)
+    pos = [pos for pos, char in enumerate(tail) if char == '_'][2]
+    date = tail[pos + 1: pos + 9]
+    date_h = dt.datetime.strptime(date, '%Y%m%d').date()
+    return date, date_h
+
+
+def cgl_resampler():
+    # If the product is locally present fill the path otherwise leave empty
+    path = ''
+
+    # define the output folder
+    folder = ''
+
+    # Define the credential for the Copernicus Global Land repository
+
+    user = ''
+    psw = ''
+
+    # Define the AOI
+    my_ext = [-18.58, 62.95, 51.57, 28.5]
+
+    assert user, 'User ID is empty'
+    assert psw, 'Password is empty'
+
+    # Select and download product if not already present locally
+    if path == '':
+        path = _downloader(user, psw, folder)
+
+    # Load the dataset
+    ds = xr.open_dataset(path, mask_and_scale=False)
+
+    # select parameters according to the product.
+    da, param = _param(ds)
+    date, date_h = _date_extr(path)
+
+    # AOI
+    da = _aoi(da, ds, my_ext)
+
+    # create the mask according to the fixed values
     da_msk = da.where(da <= param['DIGITAL_MAX'])
 
+    # create the coarsen dataset
     coarsen = da_msk.coarsen(lat=3, lon=3, coord_func=np.mean, boundary='trim', keep_attrs=False).mean()
 
+    # mask the dataset according to the minumum required values
     vo = xr.where(da <= param['DIGITAL_MAX'], 1, 0)
     vo_cnt = vo.coarsen(lat=3, lon=3, coord_func=np.mean, boundary='trim', keep_attrs=False).sum()
     da_r = coarsen.where(vo_cnt >= 5)
 
+    # Write the output
     da_r.name = param['product']
     da_r.attrs['short_name'] = param['short_name']
     da_r.attrs['long_name'] = param['long_name']
     prmts = dict({param['product']: {'dtype': 'f8', 'zlib': 'True', 'complevel': 4}})
     name = param['product']
     da_r.to_netcdf(rf'D:/Data/CGL_subproject_coarse_res/Tests/CGLS_{name}_1KM_R_Europe_{date}.nc', encoding=prmts)
-    print('Done')
 
+    # Plot
     da_r.plot(robust=True, cmap='YlGn', figsize=(15, 10))
-
     plt.title(f'Copernicus Global Land\n Resampled {name} to 1K over Europe\n date: {date_h}')
     plt.ylabel('latitude')
     plt.xlabel('longitude')
     plt.draw()
     plt.show()
 
+    print('Conversion done')
+
 
 if __name__ == '__main__':
-    CGL()
+    cgl_resampler()
