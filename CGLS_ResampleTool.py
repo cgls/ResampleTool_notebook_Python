@@ -213,28 +213,7 @@ def _date_extr(path):
     return date, date_h
 
 
-def cgl_resampler():
-    # If the product is locally present fill the path otherwise leave empty
-    path = ''
-
-    # define the output folder
-    folder = ''
-
-    # Define the credential for the Copernicus Global Land repository
-
-    user = ''
-    psw = ''
-
-    # Define the AOI
-    my_ext = [-18.58, 62.95, 51.57, 28.5]
-
-    assert user, 'User ID is empty'
-    assert psw, 'Password is empty'
-
-    # Select and download product if not already present locally
-    if path == '':
-        path = _downloader(user, psw, folder)
-
+def _resampler(path, my_ext, plot, out_folder):
     # Load the dataset
     ds = xr.open_dataset(path, mask_and_scale=False)
 
@@ -261,19 +240,69 @@ def cgl_resampler():
     da_r.attrs['short_name'] = param['short_name']
     da_r.attrs['long_name'] = param['long_name']
     prmts = dict({param['product']: {'dtype': 'f8', 'zlib': 'True', 'complevel': 4}})
+
     name = param['product']
-    da_r.to_netcdf(rf'D:/Data/CGL_subproject_coarse_res/Tests/CGLS_{name}_1KM_R_Europe_{date}.nc', encoding=prmts)
+    if len(my_ext) != 0:
+        file_name = f'CGLS_{name}_{date}_1KM_Resampled_AOI_.nc'
+    else:
+        file_name = f'CGLS_{name}_{date}_1KM_Resampled_.nc'
+
+    out_file = os.path.join(out_folder, file_name)
+    da_r.to_netcdf(out_file, encoding=prmts)
+
+    print(f'{file_name} resampled')
 
     # Plot
-    da_r.plot(robust=True, cmap='YlGn', figsize=(15, 10))
-    plt.title(f'Copernicus Global Land\n Resampled {name} to 1K over Europe\n date: {date_h}')
-    plt.ylabel('latitude')
-    plt.xlabel('longitude')
-    plt.draw()
-    plt.show()
+    if plot:
+        da_r.plot(robust=True, cmap='YlGn', figsize=(15, 10))
+        plt.title(f'Copernicus Global Land\n Resampled {name} to 1K over Europe\n date: {date_h}')
+        plt.ylabel('latitude')
+        plt.xlabel('longitude')
+        plt.draw()
+        plt.show()
+
+
+def main():
+    # If the product is locally present fill the path otherwise leave empty
+    path = 'd:/Data/CGL_subproject_coarse_res/2019/300/'
+
+    # define the output folder
+    out_folder = 'd:/Data/CGL_subproject_coarse_res/2019/resampled'
+
+    # Define the credential for the Copernicus Global Land repository
+    user = 'pl_marasco'
+    psw = 'Firenze123'
+
+    # Define the AOI
+    my_ext = [-18.58, 62.95, 51.57, 28.5]
+
+    # Plot results
+    plot = False
+
+    # Processing
+    if path == '':
+        # Download and process
+        assert user, 'User ID is empty'
+        assert psw, 'Password is empty'
+
+        path = _downloader(user, psw, out_folder)
+        _resampler(path, my_ext, plot, out_folder)
+    elif os.path.isfile(path):
+        # Single file process
+        _resampler(path, my_ext, plot, out_folder)
+    elif os.path.isdir(path):
+        # Multiprocessing for local files
+
+        if not os.listdir(path):
+            print("Directory is empty")
+        else:
+            for filename in os.listdir(path):
+                if filename.endswith(".nc"):
+                    path_ = os.path.join(path, filename)
+                    _resampler(path_, my_ext, plot, out_folder)
 
     print('Conversion done')
 
 
 if __name__ == '__main__':
-    cgl_resampler()
+    main()
