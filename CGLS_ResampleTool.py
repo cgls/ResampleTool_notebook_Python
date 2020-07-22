@@ -209,7 +209,7 @@ def _date_extr(path):
     _, tail = os.path.split(path)
     pos = [pos for pos, char in enumerate(tail) if char == '_'][2]
     date = tail[pos + 1: pos + 9]
-    date_h = dt.datetime.strptime(date, '%Y%m%d').date()
+    date_h = pd.to_datetime(date, format = '%Y%m%d')
     return date, date_h
 
 
@@ -235,6 +235,10 @@ def _resampler(path, my_ext, plot, out_folder):
     vo_cnt = vo.coarsen(lat=3, lon=3, coord_func=np.mean, boundary='trim', keep_attrs=False).sum()
     da_r = coarsen.where(vo_cnt >= 5)
 
+    # Add time dimension
+    da_r = da_r.assign_coords({'time': date_h})
+    da_r = da_r.expand_dims(dim='time', axis=0)
+
     # Write the output
     da_r.name = param['product']
     da_r.attrs['short_name'] = param['short_name']
@@ -255,7 +259,7 @@ def _resampler(path, my_ext, plot, out_folder):
     # Plot
     if plot:
         da_r.plot(robust=True, cmap='YlGn', figsize=(15, 10))
-        plt.title(f'Copernicus Global Land\n Resampled {name} to 1K over Europe\n date: {date_h}')
+        plt.title(f'Copernicus Global Land\n Resampled {name} to 1K over Europe\n date: {date_h.date()}')
         plt.ylabel('latitude')
         plt.xlabel('longitude')
         plt.draw()
@@ -264,14 +268,14 @@ def _resampler(path, my_ext, plot, out_folder):
 
 def main():
     # If the product is locally present fill the path otherwise leave empty
-    path = 'd:/Data/CGL_subproject_coarse_res/2019/300/'
+    path = 'd:/Data/CGL_subproject_coarse_res/2019/300/c_gls_NDVI300_201901010000_GLOBE_PROBAV_V1.0.1.nc'
 
     # define the output folder
     out_folder = 'd:/Data/CGL_subproject_coarse_res/2019/resampled'
 
     # Define the credential for the Copernicus Global Land repository
-    user = 'pl_marasco'
-    psw = 'Firenze123'
+    user = ''
+    psw = ''
 
     # Define the AOI
     my_ext = [-18.58, 62.95, 51.57, 28.5]
