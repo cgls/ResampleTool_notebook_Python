@@ -228,11 +228,11 @@ def _resampler(path, my_ext, plot, out_folder):
     da_msk = da.where(da <= param['DIGITAL_MAX'])
 
     # create the coarsen dataset
-    coarsen = da_msk.coarsen(lat=3, lon=3, coord_func=np.mean, boundary='trim', keep_attrs=False).mean()
+    coarsen = da_msk.coarsen(lat=3, lon=3, boundary='trim', keep_attrs=False).mean()
 
     # mask the dataset according to the minumum required values
     vo = xr.where(da <= param['DIGITAL_MAX'], 1, 0)
-    vo_cnt = vo.coarsen(lat=3, lon=3, coord_func=np.mean, boundary='trim', keep_attrs=False).sum()
+    vo_cnt = vo.coarsen(lat=3, lon=3, boundary='trim', keep_attrs=False).sum()
     da_r = coarsen.where(vo_cnt >= 5)
 
     # Add time dimension
