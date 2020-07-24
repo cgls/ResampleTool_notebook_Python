@@ -229,11 +229,13 @@ def _resampler(path, my_ext, plot, out_folder):
 
     # create the coarsen dataset
     coarsen = da_msk.coarsen(lat=3, lon=3, boundary='trim', keep_attrs=False).mean()
+    # force results to integer
+    coarsen_int = np.rint(coarsen)
 
     # mask the dataset according to the minumum required values
     vo = xr.where(da <= param['DIGITAL_MAX'], 1, 0)
     vo_cnt = vo.coarsen(lat=3, lon=3, boundary='trim', keep_attrs=False).sum()
-    da_r = coarsen.where(vo_cnt >= 5)
+    da_r = coarsen_int.where(vo_cnt >= 5)
 
     # Add time dimension
     da_r = da_r.assign_coords({'time': date_h})
@@ -243,7 +245,8 @@ def _resampler(path, my_ext, plot, out_folder):
     da_r.name = param['product']
     da_r.attrs['short_name'] = param['short_name']
     da_r.attrs['long_name'] = param['long_name']
-    prmts = dict({param['product']: {'dtype': 'f8', 'zlib': 'True', 'complevel': 4}})
+    # TODO check other products than NDVI
+    prmts = dict({param['product']: {'dtype': 'i8', 'zlib': 'True', 'complevel': 4}})
 
     name = param['product']
     if len(my_ext) != 0:
@@ -291,10 +294,10 @@ def main():
       through the Register form (on the upper right part of the page)
     '''
 
-    path = 'd:/Data/CGL_subproject_coarse_res/2019/300/2019/'
+    path = r'D:\Data\CGL_subproject_coarse_res\04_ndvi\300\2020'
 
     # define the output folder
-    out_folder = 'd:/Data/CGL_subproject_coarse_res/2019/resampled'
+    out_folder = r'D:\Data\CGL_subproject_coarse_res\2019\resampled'
 
     # Define the credential for the Copernicus Global Land repository
     user = ''
