@@ -267,8 +267,31 @@ def _resampler(path, my_ext, plot, out_folder):
 
 
 def main():
-    # If the product is locally present fill the path otherwise leave empty
-    path = 'd:/Data/CGL_subproject_coarse_res/2019/300/c_gls_NDVI300_201901010000_GLOBE_PROBAV_V1.0.1.nc'
+    """ Copernics Global Land Resampler
+
+        The aim of this tool is to facilitate the resampling of the 333m ProbaV Copernicus Global Land Service products [1]
+        (i.e. NDVI, FaPAR LAI, ... ) to the coarsen resolution of 1km.
+        With the present release only the main indexes per products can be resampled. Other indexes, like the RMSE, can't
+        be resampled.
+        More info a about quality assessment can be found in the report create for the R version of this tool [2]
+
+        [1] https://land.copernicus.eu/global/themes/vegetation
+        [2] https://github.com/xavi-rp/ResampleTool_notebook/blob/master/Resample_Report_v2.5.pdf
+    """
+
+    '''
+    Instructions:
+    The tool is able to process act in different way according to the necessity
+    
+    - Single file: fill the path with the exact position and the file name
+    - Bach processing: Define the folder without any further info about the extension of files
+    - SemiAutomatic download (single file): Leave the path empty, a wizard will help in the selection and download.
+      If the semiautomatic download is selected as option user ID and password needs to be defined. 
+      Credential can be obtained here https://land.copernicus.vgt.vito.be/PDF/portal/Application.html#Home 
+      through the Register form (on the upper right part of the page)
+    '''
+
+    path = 'd:/Data/CGL_subproject_coarse_res/2019/300/2019/'
 
     # define the output folder
     out_folder = 'd:/Data/CGL_subproject_coarse_res/2019/resampled'
@@ -280,7 +303,7 @@ def main():
     # Define the AOI
     my_ext = [-18.58, 62.95, 51.57, 28.5]
 
-    # Plot results
+    # Define if plot results or not
     plot = False
 
     # Processing
@@ -296,7 +319,6 @@ def main():
         _resampler(path, my_ext, plot, out_folder)
     elif os.path.isdir(path):
         # Multiprocessing for local files
-
         if not os.listdir(path):
             print("Directory is empty")
         else:
