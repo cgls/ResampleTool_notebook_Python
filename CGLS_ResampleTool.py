@@ -131,7 +131,7 @@ def _downloader(user, psw, folder):
     rows = r.text.split('\n')
     dates = pd.DataFrame()
     for line in rows[:-1]:
-        r = re.search(r"\d\d\d\d(\/)\d\d(\/)\d\d", line)
+        r = re.search(r"\d\d\d\d/\d\d/\d\d", line)
         dates = dates.append(pd.DataFrame([line], index=[pd.to_datetime(r[0], format="%Y/%m/%d")]))
 
     val = input('Please insert the date in teh format YYYY/MM/DD:')
@@ -169,34 +169,44 @@ def _aoi(da, ds, my_ext):
         return array[idx]
 
     def bnd_box_adj(my_ext):
-        lat_1k = np.arange(80., -60., -1. / 112)
-        lon_1k = np.arange(-180., 180., 1. / 112)
+        lat_1K = np.round(np.arange(80., -60., -1. / 112), 8)
+        lon_1K = np.round(np.arange(-180., 180., 1. / 112), 8)
 
         lat_300 = ds.lat.values
         lon_300 = ds.lon.values
         ext_1K = np.zeros(4)
 
         # TODO find a more pythonic way
-        ext_1K[0] = find_nearest(lon_1k, my_ext[0]) - 1. / 224
-        ext_1K[1] = find_nearest(lat_1k, my_ext[1]) + 1. / 224
-        ext_1K[2] = find_nearest(lon_1k, my_ext[2]) - 1. / 224
-        ext_1K[3] = find_nearest(lat_1k, my_ext[3]) + 1. / 224
+        # UPL Long 1K
+        ext_1K[0] = find_nearest(lon_1K, my_ext[0]) - 1./336
+        # UPL Lat 1K
+        ext_1K[1] = find_nearest(lat_1K, my_ext[1]) + 1./336
 
-        my_ext[0] = find_nearest(lat_300, ext_1K[0])
-        my_ext[1] = find_nearest(lon_300, ext_1K[1])
-        my_ext[2] = find_nearest(lat_300, ext_1K[2])
-        my_ext[3] = find_nearest(lon_300, ext_1K[3])
+        # LOWR Long 1K
+        ext_1K[2] = find_nearest(lon_1K, my_ext[2]) + 1./336
+        # LOWR Lat 1K
+        ext_1K[3] = find_nearest(lat_1K, my_ext[3]) - 1./336
+
+        # UPL
+        my_ext[0] = find_nearest(lon_300, ext_1K[0])
+        my_ext[1] = find_nearest(lat_300, ext_1K[1])
+
+        # LOWR
+        my_ext[2] = find_nearest(lon_300, ext_1K[2])
+        my_ext[3] = find_nearest(lat_300, ext_1K[3])
         return my_ext
 
     if len(my_ext):
-        assert my_ext[1] >= my_ext[3], 'min Latitude is bigger than correspond Max, ' \
-                                       'pls change position or check values.'
         assert my_ext[0] <= my_ext[2], 'min Longitude is bigger than correspond Max, ' \
                                        'pls change position or check values.'
-        assert ds.lat[-1] <= my_ext[3] <= ds.lat[0], 'min Latitudinal value out of original dataset Max ext.'
-        assert ds.lat[-1] <= my_ext[1] <= ds.lat[0], 'Max Latitudinal value out of original dataset Max ext.'
+        assert my_ext[1] >= my_ext[3], 'min Latitude is bigger than correspond Max, ' \
+                                       'pls change position or check values.'
         assert ds.lon[0] <= my_ext[0] <= ds.lon[-1], 'min Longitudinal value out of original dataset Max ext.'
+        assert ds.lat[-1] <= my_ext[1] <= ds.lat[0], 'Max Latitudinal value out of original dataset Max ext.'
+
         assert ds.lon[0] <= my_ext[2] <= ds.lon[-1], 'Max Longitudinal value out of original dataset Max ext.'
+        assert ds.lat[-1] <= my_ext[3] <= ds.lat[0], 'min Latitudinal value out of original dataset Max ext.'
+
         adj_ext = bnd_box_adj(my_ext)
 
         da = da.sel(lon=slice(adj_ext[0], adj_ext[2]), lat=slice(adj_ext[1], adj_ext[3]))
@@ -258,7 +268,7 @@ def _resampler(path, my_ext, plot, out_folder):
 
     name = param['product']
     if len(my_ext) != 0:
-        file_name = f'CGLS_{name}_{date}_1KM_Resampled_AOI_.nc'
+        file_name = f'CGLS_{name}_{date}_1KM_Resampled_AOI.nc'
     else:
         file_name = f'CGLS_{name}_{date}_1KM_Resampled_.nc'
 
@@ -302,17 +312,19 @@ def main():
       through the Register form (on the upper right part of the page)
     '''
 
-    path = r'D:\Data\CGL_subproject_coarse_res\04_ndvi\300\2019'
+    path = r'D:\Data\CGL_subproject_coarse_res\04_ndvi\300\2019\c_gls_NDVI300_201905210000_GLOBE_PROBAV_V1.0.1.nc'
 
     # define the output folder
-    out_folder = r'D:\Data\CGL_subproject_coarse_res\2019\resampled\2019'
+    out_folder = r'D:\Data\CGL_subproject_coarse_res\2019\resampled'
 
     # Define the credential for the Copernicus Global Land repository
     user = ''
     psw = ''
 
     # Define the AOI
-    my_ext = [-18.58, 62.95, 51.57, 28.5]
+    # Coordinates are expressed in decimal degrees following the [Upper left long, lat, Lower right long, lat] schema
+    my_ext = [-26., 38., 60., -35.]
+    # [-18.58, 62.95, 51.57, 28.5]
 
     # Define if plot results or not
     plot = False
