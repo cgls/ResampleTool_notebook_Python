@@ -255,7 +255,7 @@ def _resampler(path, my_ext, plot, out_folder):
         da_r = coarsen_int.where(vo_cnt >= 5)
 
         # force nan to int
-        da_r = xr.where(np.isnan(da_r), 255, coarsen)
+        da_r = xr.where(np.isnan(da_r), 255, coarsen_int)
 
         # Add time dimension
         da_r = da_r.assign_coords({'time': date_h})
