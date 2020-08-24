@@ -24,7 +24,7 @@ def _param(ds):
                  'PHYSICAL_MIN': 0,
                  'PHYSICAL_MAX': 7,
                  'DIGITAL_MAX': 210,
-                 'SCALING': 1. / 30,
+                 'SCALING': 1./30,
                  'OFFSET': 0}
         da = ds.LAI
 
@@ -40,7 +40,7 @@ def _param(ds):
                  'PHYSICAL_MIN': 0,
                  'PHYSICAL_MAX': 1.,
                  'DIGITAL_MAX': 250,
-                 'SCALING': 1. / 250,
+                 'SCALING': 1./250,
                  'OFFSET': 0}
         da = ds.FCOVER
 
@@ -56,7 +56,7 @@ def _param(ds):
                  'PHYSICAL_MIN': 0,
                  'PHYSICAL_MAX': 0.94,
                  'DIGITAL_MAX': 235,
-                 'SCALING': 1. / 250,
+                 'SCALING': 1./250,
                  'OFFSET': 0}
         da = ds.FAPAR
 
@@ -71,7 +71,7 @@ def _param(ds):
                  'PHYSICAL_MIN': -0.08,
                  'PHYSICAL_MAX': 0.92,
                  'DIGITAL_MAX': 250,
-                 'SCALING': 1. / 250,
+                 'SCALING': 1./250,
                  'OFFSET': -0.08}
         da = ds.NDVI
 
@@ -86,7 +86,7 @@ def _param(ds):
                  'PHYSICAL_MIN': 0,
                  'PHYSICAL_MAX': 327.67,
                  'DIGITAL_MAX': 32767,
-                 'SCALING': 1. / 100,
+                 'SCALING': 1./100,
                  'OFFSET': 0}
         da = ds.DMP
 
@@ -101,7 +101,7 @@ def _param(ds):
                  'PHYSICAL_MIN': 0,
                  'PHYSICAL_MAX': 655.34,
                  'DIGITAL_MAX': 32767,
-                 'SCALING': 1. / 50,
+                 'SCALING': 1./50,
                  'OFFSET': 0}
         da = ds.GDMP
 
@@ -131,7 +131,7 @@ def _downloader(user, psw, folder):
     rows = r.text.split('\n')
     dates = pd.DataFrame()
     for line in rows[:-1]:
-        r = re.search(r"\d\d\d\d(\/)\d\d(\/)\d\d", line)
+        r = re.search(r"\d\d\d\d/\d\d/\d\d", line)
         dates = dates.append(pd.DataFrame([line], index=[pd.to_datetime(r[0], format="%Y/%m/%d")]))
 
     val = input('Please insert the date in teh format YYYY/MM/DD:')
@@ -162,44 +162,58 @@ def _downloader(user, psw, folder):
     return path
 
 
-def _aoi(da, ds, my_ext):
+def _aoi(da, ds, AOI):
     def find_nearest(array, value):
         array = np.asarray(array)
         idx = (np.abs(array - value)).argmin()
         return array[idx]
 
     def bnd_box_adj(my_ext):
-        lat_1k = np.arange(80., -60., -1. / 112)
-        lon_1k = np.arange(-180., 180., 1. / 112)
+        lat_1k = np.round(np.arange(80., -60., -1. / 112), 8)
+        lon_1k = np.round(np.arange(-180., 180., 1. / 112), 8)
 
         lat_300 = ds.lat.values
         lon_300 = ds.lon.values
-        ext_1K = np.zeros(4)
+        ext_1k = np.zeros(4)
 
-        # TODO find a more pythonic way
-        ext_1K[0] = find_nearest(lon_1k, my_ext[0]) - 1. / 224
-        ext_1K[1] = find_nearest(lat_1k, my_ext[1]) + 1. / 224
-        ext_1K[2] = find_nearest(lon_1k, my_ext[2]) - 1. / 224
-        ext_1K[3] = find_nearest(lat_1k, my_ext[3]) + 1. / 224
+        # UPL Long 1K
+        ext_1k[0] = find_nearest(lon_1k, my_ext[0]) - 1. / 336
+        # UPL Lat 1K
+        ext_1k[1] = find_nearest(lat_1k, my_ext[1]) + 1. / 336
 
-        my_ext[0] = find_nearest(lat_300, ext_1K[0])
-        my_ext[1] = find_nearest(lon_300, ext_1K[1])
-        my_ext[2] = find_nearest(lat_300, ext_1K[2])
-        my_ext[3] = find_nearest(lon_300, ext_1K[3])
+        # LOWR Long 1K
+        ext_1k[2] = find_nearest(lon_1k, my_ext[2]) + 1. / 336
+        # LOWR Lat 1K
+        ext_1k[3] = find_nearest(lat_1k, my_ext[3]) - 1. / 336
+
+        # UPL
+        my_ext[0] = find_nearest(lon_300, ext_1k[0])
+        my_ext[1] = find_nearest(lat_300, ext_1k[1])
+
+        # LOWR
+        my_ext[2] = find_nearest(lon_300, ext_1k[2])
+        my_ext[3] = find_nearest(lat_300, ext_1k[3])
         return my_ext
 
-    if len(my_ext):
-        assert my_ext[1] >= my_ext[3], 'min Latitude is bigger than correspond Max, ' \
+    if len(AOI):
+        assert AOI[0] <= AOI[2], 'min Longitude is bigger than correspond Max, ' \
                                        'pls change position or check values.'
-        assert my_ext[0] <= my_ext[2], 'min Longitude is bigger than correspond Max, ' \
+        assert AOI[1] >= AOI[3], 'min Latitude is bigger than correspond Max, ' \
                                        'pls change position or check values.'
-        assert ds.lat[-1] <= my_ext[3] <= ds.lat[0], 'min Latitudinal value out of original dataset Max ext.'
-        assert ds.lat[-1] <= my_ext[1] <= ds.lat[0], 'Max Latitudinal value out of original dataset Max ext.'
-        assert ds.lon[0] <= my_ext[0] <= ds.lon[-1], 'min Longitudinal value out of original dataset Max ext.'
-        assert ds.lon[0] <= my_ext[2] <= ds.lon[-1], 'Max Longitudinal value out of original dataset Max ext.'
-        adj_ext = bnd_box_adj(my_ext)
+        assert ds.lon[0] <= AOI[0] <= ds.lon[-1], 'min Longitudinal value out of original dataset Max ext.'
+        assert ds.lat[-1] <= AOI[1] <= ds.lat[0], 'Max Latitudinal value out of original dataset Max ext.'
 
-        da = da.sel(lon=slice(adj_ext[0], adj_ext[2]), lat=slice(adj_ext[1], adj_ext[3]))
+        assert ds.lon[0] <= AOI[2] <= ds.lon[-1], 'Max Longitudinal value out of original dataset Max ext.'
+        assert ds.lat[-1] <= AOI[3] <= ds.lat[0], 'min Latitudinal value out of original dataset Max ext.'
+
+        adj_ext = bnd_box_adj(AOI)
+        try:
+            da = da.sel(lon=slice(adj_ext[0], adj_ext[2]), lat=slice(adj_ext[1], adj_ext[3]))
+        except Exception as ex:
+            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+            message = template.format(type(ex).__name__, ex.args)
+            print(message)
+            raise sys.exit(1)
     else:
         da = da.shift(lat=1, lon=1)
     return da
@@ -209,7 +223,7 @@ def _date_extr(path):
     _, tail = os.path.split(path)
     pos = [pos for pos, char in enumerate(tail) if char == '_'][2]
     date = tail[pos + 1: pos + 9]
-    date_h = pd.to_datetime(date, format = '%Y%m%d')
+    date_h = pd.to_datetime(date, format='%Y%m%d')
     return date, date_h
 
 
@@ -224,35 +238,59 @@ def _resampler(path, my_ext, plot, out_folder):
     # AOI
     da = _aoi(da, ds, my_ext)
 
-    # create the mask according to the fixed values
-    da_msk = da.where(da <= param['DIGITAL_MAX'])
+    # Algorithm core
+    try:
+        # create the mask according to the fixed values
+        da_msk = da.where(da <= param['DIGITAL_MAX'])
 
-    # create the coarsen dataset
-    coarsen = da_msk.coarsen(lat=3, lon=3, coord_func=np.mean, boundary='trim', keep_attrs=False).mean()
+        # create the coarsen dataset
+        coarsen = da_msk.coarsen(lat=3, lon=3, boundary='trim', keep_attrs=False).mean()
 
-    # mask the dataset according to the minumum required values
-    vo = xr.where(da <= param['DIGITAL_MAX'], 1, 0)
-    vo_cnt = vo.coarsen(lat=3, lon=3, coord_func=np.mean, boundary='trim', keep_attrs=False).sum()
-    da_r = coarsen.where(vo_cnt >= 5)
+        # force results to integer
+        coarsen_int = np.rint(coarsen)
 
-    # Add time dimension
-    da_r = da_r.assign_coords({'time': date_h})
-    da_r = da_r.expand_dims(dim='time', axis=0)
+        # mask the dataset according to the minumum required values
+        vo = xr.where(da <= param['DIGITAL_MAX'], 1, 0)
+        vo_cnt = vo.coarsen(lat=3, lon=3, boundary='trim', keep_attrs=False).sum()
+        da_r = coarsen_int.where(vo_cnt >= 5)
 
-    # Write the output
-    da_r.name = param['product']
-    da_r.attrs['short_name'] = param['short_name']
-    da_r.attrs['long_name'] = param['long_name']
-    prmts = dict({param['product']: {'dtype': 'f8', 'zlib': 'True', 'complevel': 4}})
+        # force nan to int
+        da_r = xr.where(np.isnan(da_r), 255, coarsen_int)
 
-    name = param['product']
-    if len(my_ext) != 0:
-        file_name = f'CGLS_{name}_{date}_1KM_Resampled_AOI_.nc'
-    else:
-        file_name = f'CGLS_{name}_{date}_1KM_Resampled_.nc'
+        # Add time dimension
+        da_r = da_r.assign_coords({'time': date_h})
+        da_r = da_r.expand_dims(dim='time', axis=0)
+    except Exception as ex:
+        template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+        message = template.format(type(ex).__name__, ex.args)
+        print(message)
+        raise sys.exit(1)
 
-    out_file = os.path.join(out_folder, file_name)
-    da_r.to_netcdf(out_file, encoding=prmts)
+    # Output write
+    try:
+        da_r.name = param['product']
+        da_r.attrs['short_name'] = param['short_name']
+        da_r.attrs['long_name'] = param['long_name']
+        da_r.attrs['_FillValue'] = int(255)
+        da_r.attrs['scale_factor'] = np.float32(param['SCALING'])
+        da_r.attrs['add_offset'] = np.float32(param['OFFSET'])
+
+        prmts = dict({param['product']: {'dtype': 'i4', 'zlib': 'True', 'complevel': 4}})
+
+        name = param['product']
+        if len(my_ext) != 0:
+            file_name = f'CGLS_{name}_{date}_1KM_Resampled_AOI.nc'
+        else:
+            file_name = f'CGLS_{name}_{date}_1KM_Resampled_.nc'
+
+        out_file = os.path.join(out_folder, file_name)
+
+        da_r.to_netcdf(out_file, encoding=prmts)
+    except Exception as ex:
+        template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+        message = template.format(type(ex).__name__, ex.args)
+        print(message)
+        raise sys.exit(1)
 
     print(f'{file_name} resampled')
 
@@ -267,20 +305,46 @@ def _resampler(path, my_ext, plot, out_folder):
 
 
 def main():
-    # If the product is locally present fill the path otherwise leave empty
-    path = 'd:/Data/CGL_subproject_coarse_res/2019/300/c_gls_NDVI300_201901010000_GLOBE_PROBAV_V1.0.1.nc'
+    """ Copernics Global Land Resampler
+
+        The aim of this tool is to facilitate the resampling of the 333m ProbaV Copernicus Global Land Service products
+        [1] (i.e. NDVI, FaPAR LAI, ... ) to the coarsen resolution of 1km.
+        With the present release only the main indexes per products can be resampled. Other indexes, like the RMSE,
+        can't be resampled.
+        More info a about quality assessment can be found in the report create for the R version of this tool [2]
+
+        [1] https://land.copernicus.eu/global/themes/vegetation
+        [2] https://github.com/xavi-rp/ResampleTool_notebook/blob/master/Resample_Report_v2.5.pdf
+    """
+
+    '''
+    Instructions:
+    The tool is able to process act in different way according to the necessity
+    
+    - Single file: fill the path with the exact position and the file name
+    - Bach processing: Define the folder without any further info about the extension of files
+    - SemiAutomatic download (single file): Leave the path empty, a wizard will help in the selection and download.
+      If the semiautomatic download is selected as option user ID and password needs to be defined. 
+      Credential can be obtained here https://land.copernicus.vgt.vito.be/PDF/portal/Application.html#Home 
+      through the Register form (on the upper right part of the page)
+    '''
+
+    path = r'D:\Data\CGL_subproject_coarse_res\04_ndvi\300\2019\c_gls_NDVI300_201905210000_GLOBE_PROBAV_V1.0.1.nc'
 
     # define the output folder
-    out_folder = 'd:/Data/CGL_subproject_coarse_res/2019/resampled'
+    out_folder = r'D:\Data\CGL_subproject_coarse_res\2019\resampled'
 
     # Define the credential for the Copernicus Global Land repository
     user = ''
     psw = ''
 
     # Define the AOI
-    my_ext = [-18.58, 62.95, 51.57, 28.5]
+    # Coordinates are expressed in Decimal degrees (DD)
+    # expressed according to [Upper left long, lat, Lower right long, lat] schema
 
-    # Plot results
+    AOI = []
+
+    # Define if plot results or not
     plot = False
 
     # Processing
@@ -290,23 +354,27 @@ def main():
         assert psw, 'Password is empty'
 
         path = _downloader(user, psw, out_folder)
-        _resampler(path, my_ext, plot, out_folder)
+        _resampler(path, AOI, plot, out_folder)
     elif os.path.isfile(path):
         # Single file process
-        _resampler(path, my_ext, plot, out_folder)
+        _resampler(path, AOI, plot, out_folder)
     elif os.path.isdir(path):
         # Multiprocessing for local files
-
         if not os.listdir(path):
             print("Directory is empty")
         else:
             for filename in os.listdir(path):
                 if filename.endswith(".nc"):
                     path_ = os.path.join(path, filename)
-                    _resampler(path_, my_ext, plot, out_folder)
+                    _resampler(path_, AOI, plot, out_folder)
 
     print('Conversion done')
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('Process killed by user')
+        raise sys.exit(1)
+
