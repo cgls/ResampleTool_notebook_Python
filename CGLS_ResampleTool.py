@@ -258,8 +258,10 @@ def _resampler(path, my_ext, plot, out_folder):
         da_r = xr.where(np.isnan(da_r), 255, coarsen_int)
 
         # Add time dimension
-        da_r = da_r.assign_coords({'time': date_h})
-        da_r = da_r.expand_dims(dim='time', axis=0)
+        if not da_r.time:
+            da_r = da_r.assign_coords({'time': date_h})
+            da_r = da_r.expand_dims(dim='time', axis=0)
+
     except Exception as ex:
         template = "An exception of type {0} occurred. Arguments:\n{1!r}"
         message = template.format(type(ex).__name__, ex.args)
@@ -329,10 +331,10 @@ def main():
       through the Register form (on the upper right part of the page)
     '''
 
-    path = r'D:\Data\CGL_subproject_coarse_res\04_ndvi\300\2019\c_gls_NDVI300_201905210000_GLOBE_PROBAV_V1.0.1.nc'
+    path = r'D:\data\Resample\c_gls_LAI300-RT2_202009200000_GLOBE_OLCI_V1.1.1.nc'
 
     # define the output folder
-    out_folder = r'D:\Data\CGL_subproject_coarse_res\2019\resampled'
+    out_folder = r'D:\tmp'
 
     # Define the credential for the Copernicus Global Land repository
     user = ''
