@@ -350,6 +350,7 @@ def main():
     plot = False
 
     # Processing
+
     if path == '':
         # Download and process
         assert user, 'User ID is empty'
@@ -369,6 +370,8 @@ def main():
                 if filename.endswith(".nc"):
                     path_ = os.path.join(path, filename)
                     _resampler(path_, AOI, plot, out_folder)
+    else:
+        assert os.path.isfile(path), print('Sorry! Path isn\'t pointing to a file')
 
     print('Conversion done')
 
@@ -376,6 +379,8 @@ def main():
 if __name__ == '__main__':
     try:
         main()
+    except AssertionError as error:
+        pass
     except KeyboardInterrupt:
         print('Process killed by user')
         raise sys.exit(1)
